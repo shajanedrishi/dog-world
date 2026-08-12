@@ -1,0 +1,33 @@
+name: Build Android APK
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download project
+        uses: actions/checkout@v4
+
+      - name: Extract project ZIP
+        run: |
+          mkdir android-project
+          unzip -q dog-world.zip -d android-project
+
+      - name: Find project
+        run: |
+          find android-project -name gradlew -type f
+
+      - name: Build APK
+        run: |
+          cd android-project
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Dog-World-APK
+          path: android-project/**/build/outputs/apk/**/*.apk
