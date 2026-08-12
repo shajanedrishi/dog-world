@@ -11,19 +11,45 @@ jobs:
       - name: Download project
         uses: actions/checkout@v4
 
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
       - name: Extract project ZIP
         run: |
-          mkdir android-project
+          mkdir -p android-project
           unzip -q dog-world.zip -d android-project
 
-      - name: Generate Gradle Wrapper
+      - name: Find Android project
+        id: find_project
         run: |
-          cd android-project
-          gradle wrapper
+          GRADLEW=$(find android-project -type f -name gradlew -print -quit)
+
+          if [ -z "$GRADLEW" ]; then
+            echo "gradlew not found"
+            exit 1
+          fi
+
+          PROJECT_DIR=$(dirname "$GRADLEW")
+          echo "project_dir=$PROJECT_DIR" >> "$GITHUB_OUTPUT"
+
+      - name: Generate debug keystore
+        run: |
+          keytool -genkeypair -v \
+            -keystore "${{ steps.find_project.outputs.project_dir }}/debug.keystore" \
+            -storepass android \
+            -alias androiddebugkey \
+            -keypass android \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -dname "CN=Android Debug,O=Android,C=US"
 
       - name: Build APK
         run: |
-          cd android-project
+          cd "${{ steps.find_project.outputs.project_dir }}"
           chmod +x gradlew
           ./gradlew assembleDebug
 
@@ -31,4 +57,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Dog-World-APK
-          path: android-project/**/build/outputs/apk/**/*.apk
+          path: "${{ steps.find_project.outputs.project_dir }}/**/build/outputs/apk/**/*.apk"
